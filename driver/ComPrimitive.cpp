@@ -118,7 +118,11 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 		if (TesterPresentSimulation(pEvt))
 		{
 			--m_CopCtrlData.NumSendCycles;
-			--m_CopCtrlData.NumReceiveCycles;
+			if (m_CopCtrlData.NumReceiveCycles != -1)
+			{
+				--m_CopCtrlData.NumReceiveCycles;
+			}
+
 			return ret;
 		}
 
@@ -172,9 +176,16 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 			{
 				LOGGER.logInfo("ComLogicalLink/SendRecv", "Received error 0x78, waiting...");
 			}
+			else if (rxMsg[1].DataSize >= 7 && rxMsg[1].Data[4] == 0x7F && rxMsg[1].Data[6] == 0x78)
+			{
+				LOGGER.logInfo("ComLogicalLink/SendRecv", "Received error 0x78, waiting...");
+			}
 			else
 			{
-				--m_CopCtrlData.NumReceiveCycles;
+				if (m_CopCtrlData.NumReceiveCycles != -1)
+				{
+					--m_CopCtrlData.NumReceiveCycles;
+				}
 
 				pEvt = new PDU_EVENT_ITEM;
 				pEvt->hCop = m_hCoP;
