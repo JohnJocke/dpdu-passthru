@@ -13,8 +13,9 @@ constexpr int TIMEOUT_MS = 1000;
 
 UNUM32 ComPrimitive::m_hCoPCtr = 0;
 
-ComPrimitive::ComPrimitive(UNUM32 CoPType, UNUM32 CoPDataSize, UNUM8* pCoPData, PDU_COP_CTRL_DATA* pCopCtrlData, void* pCoPTag) :
-	m_state(PDU_COPST_IDLE), m_CoPType(CoPType), m_pCoPTag(pCoPTag)
+ComPrimitive::ComPrimitive(UNUM32 CoPType, UNUM32 CoPDataSize, UNUM8* pCoPData, PDU_COP_CTRL_DATA* pCopCtrlData,
+                           void* pCoPTag, unsigned long protocolID) :
+	m_state(PDU_COPST_IDLE), m_CoPType(CoPType), m_pCoPTag(pCoPTag), m_protocolID(protocolID)
 {
 	m_CoPData = std::vector<UNUM8>(pCoPData, pCoPData + CoPDataSize);
 	m_CopCtrlData = *pCopCtrlData;
@@ -56,10 +57,8 @@ long ComPrimitive::StartComm(unsigned long channelID, PDU_EVENT_ITEM* & pEvt)
 	}
 	LOGGER.logInfo("ComPrimitive/StartComm", ss.str().c_str());
 
-	//NOTE: Checksum skipped
-	unsigned long dataSize = m_CoPData.size() - 1;
-
-	PASSTHRU_MSG txMsg = { channelID, 0, 0, 0, dataSize, dataSize };
+	unsigned long dataSize = m_CoPData.size();
+	PASSTHRU_MSG txMsg = { m_protocolID, 0, 0, 0, dataSize, dataSize };
 	PASSTHRU_MSG rxMsg;
 
 	memcpy(txMsg.Data, &m_CoPData[0], dataSize);
@@ -139,9 +138,8 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 
 		unsigned long numMsgs = 1;
 
-		//NOTE: Checksum skipped
-		unsigned long dataSize = m_CoPData.size() - 1;
-		PASSTHRU_MSG txMsg = { channelID, 0, 0, 0, dataSize, dataSize };
+		unsigned long dataSize = m_CoPData.size();
+		PASSTHRU_MSG txMsg = { m_protocolID, 0, 0, 0, dataSize, dataSize };
 
 		memcpy(txMsg.Data, &m_CoPData[0], dataSize);
 
@@ -193,8 +191,8 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 
 				PDU_RESULT_DATA* pRes = (PDU_RESULT_DATA*)(pEvt->pData);
 				pRes->AcceptanceId = 1;
-				pRes->NumDataBytes = rxMsg.DataSize + 1;
-				pRes->pDataBytes = new UNUM8[rxMsg.DataSize + 1];
+				pRes->NumDataBytes = rxMsg.DataSize;
+				pRes->pDataBytes = new UNUM8[rxMsg.DataSize];
 				pRes->pExtraInfo = nullptr;
 				pRes->RxFlag.NumFlagBytes = 0;
 				pRes->StartMsgTimestamp = 0;
@@ -203,16 +201,6 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 				pRes->UniqueRespIdentifier = PDU_ID_UNDEF;
 
 				memcpy(pRes->pDataBytes, rxMsg.Data, rxMsg.DataSize);
-
-				checksum(pRes->pDataBytes, rxMsg.DataSize);
-
-				ss.str("");
-				ss << "RX csum: ";
-				for (int i = 0; i < pRes->NumDataBytes; ++i)
-				{
-					ss << std::hex << (int)pRes->pDataBytes[i] << " ";
-				}
-				LOGGER.logInfo("ComPrimitive/SendRecv", ss.str().c_str());
 			}
 			else
 			{

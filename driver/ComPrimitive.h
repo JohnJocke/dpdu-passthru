@@ -6,7 +6,7 @@
 class ComPrimitive
 {
 public:
-	ComPrimitive(UNUM32 CoPType, UNUM32 CoPDataSize, UNUM8* pCoPData, PDU_COP_CTRL_DATA* pCopCtrlData, void* pCoPTag);
+	ComPrimitive(UNUM32 CoPType, UNUM32 CoPDataSize, UNUM8* pCoPData, PDU_COP_CTRL_DATA* pCopCtrlData, void* pCoPTag, unsigned long m_protocolID);
 
 	UNUM32 getHandle();
 	UNUM32 getType();
@@ -32,6 +32,8 @@ private:
 	std::vector<UNUM8> m_CoPData;
 	PDU_COP_CTRL_DATA m_CopCtrlData;
 	void* m_pCoPTag;
+
+	unsigned long m_protocolID;
 
 	static UNUM32 m_hCoPCtr;
 
