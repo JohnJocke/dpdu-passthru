@@ -258,7 +258,7 @@ void ComPrimitive::Destroy()
 
 void ComPrimitive::Finish(PDU_EVENT_ITEM*& pEvt)
 {
-	if (m_CopCtrlData.NumReceiveCycles >= 0)
+	if (m_CopCtrlData.NumSendCycles == 0 && m_CopCtrlData.NumReceiveCycles == 0)
 	{
 		if (m_state != PDU_COPST_FINISHED)
 		{
