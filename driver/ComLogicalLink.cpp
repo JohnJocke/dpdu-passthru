@@ -165,9 +165,23 @@ long ComLogicalLink::StartMsgFilter(unsigned long filterType)
 {
 	long ret = STATUS_NOERROR;
 
+	if (!m_running)
+	{
+		//D-PDU host might not call PDUConnect before this
+		Connect();
+	}
+	
 	unsigned long filterId = 0;
-	PASSTHRU_MSG msg = { m_channelID, 0, 0, 0, 4, 4, {0, 0, 0, 0} };
-	ret = _PassThruStartMsgFilter(m_channelID, filterType, &msg, &msg, &msg, &filterId);
+	PASSTHRU_MSG mask = { m_protocolID, 0, 0, 0, 4, 4, {0, 0, 0, 0} };
+	PASSTHRU_MSG pattern = { m_protocolID, 0, 0, 0, 4, 4, {0, 0, 0, 0} };
+	ret = _PassThruStartMsgFilter(m_channelID, PASS_FILTER, &mask, &pattern, nullptr, &filterId);
+	
+	if (ret != STATUS_NOERROR)
+	{
+		char err[256];
+		_PassThruGetLastError(err);
+		LOGGER.logWarn("StartMsgFilter", "_PassThruStartMsgFilter ret: %d, %s", ret, err);
+	}
 
 	return ret;
 }
