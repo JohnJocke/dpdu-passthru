@@ -172,51 +172,39 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 
 			LOGGER.logInfo("ComPrimitive/SendRecv", ss.str().c_str());
 
-			if (rxMsg[1].DataSize >= 6 && rxMsg[1].Data[3] == 0x7F && rxMsg[1].Data[5] == 0x78)
+			if (m_CopCtrlData.NumReceiveCycles != -1)
 			{
-				LOGGER.logInfo("ComLogicalLink/SendRecv", "Received error 0x78, waiting...");
-			}
-			else if (rxMsg[1].DataSize >= 7 && rxMsg[1].Data[4] == 0x7F && rxMsg[1].Data[6] == 0x78)
-			{
-				LOGGER.logInfo("ComLogicalLink/SendRecv", "Received error 0x78, waiting...");
-			}
-			else
-			{
-				if (m_CopCtrlData.NumReceiveCycles != -1)
-				{
-					--m_CopCtrlData.NumReceiveCycles;
-				}
-
-				pEvt = new PDU_EVENT_ITEM;
-				pEvt->hCop = m_hCoP;
-				pEvt->ItemType = PDU_IT_RESULT;
-				pEvt->pCoPTag = m_pCoPTag;
-				pEvt->pData = new PDU_RESULT_DATA;
-
-				PDU_RESULT_DATA* pRes = (PDU_RESULT_DATA*)(pEvt->pData);
-				pRes->AcceptanceId = 1;
-				pRes->NumDataBytes = rxMsg[1].DataSize + 1;
-				pRes->pDataBytes = new UNUM8[rxMsg[1].DataSize + 1];
-				pRes->pExtraInfo = nullptr;
-				pRes->RxFlag.NumFlagBytes = 0;
-				pRes->StartMsgTimestamp = 0;
-				pRes->TimestampFlags.NumFlagBytes = 0;
-				pRes->TxMsgDoneTimestamp = 0;
-				pRes->UniqueRespIdentifier = PDU_ID_UNDEF;
-
-				memcpy(pRes->pDataBytes, rxMsg[1].Data, rxMsg[1].DataSize);
-
-				checksum(pRes->pDataBytes, rxMsg[1].DataSize);
-
-				ss.str("");
-				ss << "RX csum: ";
-				for (int i = 0; i < pRes->NumDataBytes; ++i)
-				{
-					ss << std::hex << (int)pRes->pDataBytes[i] << " ";
-				}
-				LOGGER.logInfo("ComPrimitive/SendRecv", ss.str().c_str());
+				--m_CopCtrlData.NumReceiveCycles;
 			}
 
+			pEvt = new PDU_EVENT_ITEM;
+			pEvt->hCop = m_hCoP;
+			pEvt->ItemType = PDU_IT_RESULT;
+			pEvt->pCoPTag = m_pCoPTag;
+			pEvt->pData = new PDU_RESULT_DATA;
+
+			PDU_RESULT_DATA* pRes = (PDU_RESULT_DATA*)(pEvt->pData);
+			pRes->AcceptanceId = 1;
+			pRes->NumDataBytes = rxMsg[1].DataSize + 1;
+			pRes->pDataBytes = new UNUM8[rxMsg[1].DataSize + 1];
+			pRes->pExtraInfo = nullptr;
+			pRes->RxFlag.NumFlagBytes = 0;
+			pRes->StartMsgTimestamp = 0;
+			pRes->TimestampFlags.NumFlagBytes = 0;
+			pRes->TxMsgDoneTimestamp = 0;
+			pRes->UniqueRespIdentifier = PDU_ID_UNDEF;
+
+			memcpy(pRes->pDataBytes, rxMsg[1].Data, rxMsg[1].DataSize);
+
+			checksum(pRes->pDataBytes, rxMsg[1].DataSize);
+
+			ss.str("");
+			ss << "RX csum: ";
+			for (int i = 0; i < pRes->NumDataBytes; ++i)
+			{
+				ss << std::hex << (int)pRes->pDataBytes[i] << " ";
+			}
+			LOGGER.logInfo("ComPrimitive/SendRecv", ss.str().c_str());
 		}
 		else
 		{
