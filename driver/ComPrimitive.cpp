@@ -8,7 +8,8 @@
 #include <string>
 #include <sstream>
 
-constexpr int TIMEOUT_MS = 500;
+constexpr int POLL_TIMEOUT_MS = 10;
+constexpr int TIMEOUT_MS = 1000;
 
 UNUM32 ComPrimitive::m_hCoPCtr = 0;
 
@@ -159,58 +160,69 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 
 	if (m_CopCtrlData.NumReceiveCycles > 0 || m_CopCtrlData.NumReceiveCycles == -1)
 	{
-		PASSTHRU_MSG rxMsg[2];
-		unsigned long numMsgs = 2;
-		ret = _PassThruReadMsgs(channelID, rxMsg, &numMsgs, TIMEOUT_MS);
-		if (ret == STATUS_NOERROR)
+		PASSTHRU_MSG rxMsg = {0};
+		unsigned long numMsgs = 1;
+		ret = _PassThruReadMsgs(channelID, &rxMsg, &numMsgs, POLL_TIMEOUT_MS);
+		if (ret == STATUS_NOERROR && rxMsg.RxStatus == START_OF_MESSAGE)
 		{
-			std::stringstream ss;
-			ss << "RX: ";
-			for (int i = 0; i < rxMsg[1].DataSize; ++i)
+			memset(&rxMsg, 0, sizeof(rxMsg));
+			numMsgs = 1;
+			ret = _PassThruReadMsgs(channelID, &rxMsg, &numMsgs, TIMEOUT_MS);
+			if (ret == STATUS_NOERROR)
 			{
-				ss << std::hex << (int)rxMsg[1].Data[i] << " ";
+				std::stringstream ss;
+				ss << "RX: ";
+				for (int i = 0; i < rxMsg.DataSize; ++i)
+				{
+					ss << std::hex << (int)rxMsg.Data[i] << " ";
+				}
+				ss << "RXStatus: " << std::hex << (int)rxMsg.RxStatus;
+
+				LOGGER.logInfo("ComPrimitive/SendRecv", ss.str().c_str());
+
+				if (m_CopCtrlData.NumReceiveCycles != -1)
+				{
+					--m_CopCtrlData.NumReceiveCycles;
+				}
+
+				pEvt = new PDU_EVENT_ITEM;
+				pEvt->hCop = m_hCoP;
+				pEvt->ItemType = PDU_IT_RESULT;
+				pEvt->pCoPTag = m_pCoPTag;
+				pEvt->pData = new PDU_RESULT_DATA;
+
+				PDU_RESULT_DATA* pRes = (PDU_RESULT_DATA*)(pEvt->pData);
+				pRes->AcceptanceId = 1;
+				pRes->NumDataBytes = rxMsg.DataSize + 1;
+				pRes->pDataBytes = new UNUM8[rxMsg.DataSize + 1];
+				pRes->pExtraInfo = nullptr;
+				pRes->RxFlag.NumFlagBytes = 0;
+				pRes->StartMsgTimestamp = 0;
+				pRes->TimestampFlags.NumFlagBytes = 0;
+				pRes->TxMsgDoneTimestamp = 0;
+				pRes->UniqueRespIdentifier = PDU_ID_UNDEF;
+
+				memcpy(pRes->pDataBytes, rxMsg.Data, rxMsg.DataSize);
+
+				checksum(pRes->pDataBytes, rxMsg.DataSize);
+
+				ss.str("");
+				ss << "RX csum: ";
+				for (int i = 0; i < pRes->NumDataBytes; ++i)
+				{
+					ss << std::hex << (int)pRes->pDataBytes[i] << " ";
+				}
+				LOGGER.logInfo("ComPrimitive/SendRecv", ss.str().c_str());
 			}
-			ss << "RXStatus: " << std::hex << (int)rxMsg[1].RxStatus;
-
-			LOGGER.logInfo("ComPrimitive/SendRecv", ss.str().c_str());
-
-			if (m_CopCtrlData.NumReceiveCycles != -1)
+			else
 			{
-				--m_CopCtrlData.NumReceiveCycles;
+				LOGGER.logError("ComPrimitive/SendRecv", "_PassThruReadMsgs failed %u", ret);
 			}
-
-			pEvt = new PDU_EVENT_ITEM;
-			pEvt->hCop = m_hCoP;
-			pEvt->ItemType = PDU_IT_RESULT;
-			pEvt->pCoPTag = m_pCoPTag;
-			pEvt->pData = new PDU_RESULT_DATA;
-
-			PDU_RESULT_DATA* pRes = (PDU_RESULT_DATA*)(pEvt->pData);
-			pRes->AcceptanceId = 1;
-			pRes->NumDataBytes = rxMsg[1].DataSize + 1;
-			pRes->pDataBytes = new UNUM8[rxMsg[1].DataSize + 1];
-			pRes->pExtraInfo = nullptr;
-			pRes->RxFlag.NumFlagBytes = 0;
-			pRes->StartMsgTimestamp = 0;
-			pRes->TimestampFlags.NumFlagBytes = 0;
-			pRes->TxMsgDoneTimestamp = 0;
-			pRes->UniqueRespIdentifier = PDU_ID_UNDEF;
-
-			memcpy(pRes->pDataBytes, rxMsg[1].Data, rxMsg[1].DataSize);
-
-			checksum(pRes->pDataBytes, rxMsg[1].DataSize);
-
-			ss.str("");
-			ss << "RX csum: ";
-			for (int i = 0; i < pRes->NumDataBytes; ++i)
-			{
-				ss << std::hex << (int)pRes->pDataBytes[i] << " ";
-			}
-			LOGGER.logInfo("ComPrimitive/SendRecv", ss.str().c_str());
 		}
-		else
+		else if (ret == ERR_TIMEOUT)
 		{
-			LOGGER.logError("ComPrimitive/SendRecv", "_PassThruReadMsgs failed %u", ret);
+			LOGGER.logInfo("ComPrimitive/SendRecv", "Timeout while waiting SOM");
+			ret = STATUS_NOERROR;
 		}
 	}
 
