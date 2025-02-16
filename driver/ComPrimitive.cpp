@@ -8,6 +8,8 @@
 #include <string>
 #include <sstream>
 
+constexpr int TIMEOUT_MS = 500;
+
 UNUM32 ComPrimitive::m_hCoPCtr = 0;
 
 ComPrimitive::ComPrimitive(UNUM32 CoPType, UNUM32 CoPDataSize, UNUM8* pCoPData, PDU_COP_CTRL_DATA* pCopCtrlData, void* pCoPTag) :
@@ -142,7 +144,7 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 
 		memcpy(txMsg.Data, &m_CoPData[0], dataSize);
 
-		ret = _PassThruWriteMsgs(channelID, &txMsg, &numMsgs, 500);
+		ret = _PassThruWriteMsgs(channelID, &txMsg, &numMsgs, TIMEOUT_MS);
 
 		if (ret == STATUS_NOERROR)
 		{
@@ -159,7 +161,7 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 	{
 		PASSTHRU_MSG rxMsg[2];
 		unsigned long numMsgs = 2;
-		ret = _PassThruReadMsgs(channelID, rxMsg, &numMsgs, 500);
+		ret = _PassThruReadMsgs(channelID, rxMsg, &numMsgs, TIMEOUT_MS);
 		if (ret == STATUS_NOERROR)
 		{
 			std::stringstream ss;
