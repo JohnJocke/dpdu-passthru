@@ -20,7 +20,7 @@ long ComLogicalLink::Connect()
 	switch (m_protocolID)
 	{
 		case ISO14230:
-			ret = _PassThruConnect(m_deviceID, m_protocolID, 0, 10400, &m_channelID);
+			ret = _PassThruConnect(m_deviceID, m_protocolID, ISO9141_NO_CHECKSUM, 10400, &m_channelID);
 			break;
 		default:
 			ret = ERR_INVALID_PROTOCOL_ID;
@@ -150,7 +150,7 @@ T_PDU_ERROR ComLogicalLink::Cancel(UNUM32 hCoP)
 
 UNUM32 ComLogicalLink::StartComPrimitive(UNUM32 CoPType, UNUM32 CoPDataSize, UNUM8* pCoPData, PDU_COP_CTRL_DATA* pCopCtrlData, void* pCoPTag)
 {
-	auto cop = std::shared_ptr<ComPrimitive>(new ComPrimitive(CoPType, CoPDataSize, pCoPData, pCopCtrlData, pCoPTag));
+	auto cop = std::shared_ptr<ComPrimitive>(new ComPrimitive(CoPType, CoPDataSize, pCoPData, pCopCtrlData, pCoPTag, m_protocolID));
 
 	{
 		const std::lock_guard<std::mutex> lock(m_copLock);
@@ -324,8 +324,10 @@ void ComLogicalLink::ProcessCop(std::shared_ptr<ComPrimitive> cop)
 
 	if (ret != STATUS_NOERROR)
 	{
-		LOGGER.logError("ComLogicalLink/ProcessCop", "Failed processing cop %u coptype %u, ret %u",
-			cop->getHandle(), cop->getType(), ret);
+		char err[256];
+		_PassThruGetLastError(err);
+		LOGGER.logError("ComLogicalLink/ProcessCop", "Failed processing cop %u coptype %u, ret %u, %s",
+			cop->getHandle(), cop->getType(), ret, err);
 	}
 }
 
