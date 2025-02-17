@@ -1,0 +1,21 @@
+name: Build dpdu-passthru
+
+on: 
+  push:
+    branches:
+      - main
+      - ci_test
+
+jobs:
+  build:
+    runs-on: windows-latest  # Use Windows to build with MSVC
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup MSVC Developer Command Prompt
+      uses: ilammy/msvc-dev-cmd@v1  # Sets up the Visual Studio environment
+
+    - name: Build Solution
+      run: msbuild driver/driver.sln /m /p:Configuration=Release /p:Platform=x86
