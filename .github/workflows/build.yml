@@ -7,7 +7,10 @@ on:
       - ci_test
     tags:
       - 'v*'  # Trigger release creation for tags starting with 'v'
-
+      
+permissions:
+  contents: write  # Ensure GitHub Actions has permission to create a release
+  
 jobs:
   build:
     runs-on: windows-latest  # Use Windows to build with MSVC
