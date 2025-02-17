@@ -31,7 +31,7 @@ jobs:
     - name: Publish Build Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: dpdu-passthru-${{ env.BUILD_VERSION }}
+        name: dpdu-passthru
         path: driver/Release/*.dll
 
   release:
@@ -42,16 +42,17 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
-      
+
     - name: Download Artifacts from Build Job
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
-        name: dpdu-passthru-${{ needs.build.outputs.BUILD_VERSION }}
+        name: dpdu-passthru
+        path: artifacts
 
     - name: Create Release
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
-        files: driver/Release/*.dll
+        files: artifacts/*.dll
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
