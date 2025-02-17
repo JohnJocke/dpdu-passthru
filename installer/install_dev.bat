@@ -13,7 +13,7 @@ if errorlevel 1 (
 	exit
 )
 
-xcopy /s/y "driver.dll" "C:\Program Files (x86)\dpdu_j2534"
+xcopy /s/y "..\driver\Release\driver.dll" "C:\Program Files (x86)\dpdu_j2534"
 if errorlevel 1 (
 	echo Error copying driver.dll
 	pause
