@@ -19,3 +19,9 @@ jobs:
 
     - name: Build Solution
       run: msbuild driver/driver.sln /m /p:Configuration=Release /p:Platform=x86
+      
+    - name: Publish Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dpdu-passthru-build
+        path: driver/Release/*.dll
