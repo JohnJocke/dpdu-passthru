@@ -2,19 +2,23 @@
 D-PDU API driver for J2534 compatible devices. Currently supports only GM Tech2Win software.
 
 # Currently working
-* XHorse Mini-VCI J2534 device
+* Any J2534 compatible interface with K-Line support (pin 7)
+* Tested with:
+  * XHorse Mini-VCI J2534
+  * Mongoose Pro JLR
 * Tech2Win
   * Saab 9-5 with K-Line diagnostics (pre-2006 year models). The pins 7 and 8 of the DLC need to be shorted in order to access all diagnostic units in the car. Tested with MY2000.
   * Possibly other Saab models which have only K-Line diagnostics
 
 # Todo
-* Abstraction for J2534 devices (+ support for other devices)
+* Test more with real cars
 * Find out why Saab 9-5 post-2006 fails communication with DICE through the K-Line 
 * ISO15765 / CAN support
 
 # Instructions
 ## Prerequisities
 * Install latest Microsoft Visual C++ Redistributable (x86): https://aka.ms/vs/17/release/vc_redist.x86.exe
+
 ## Install
 1. Dowload latest release: https://github.com/JohnJocke/dpdu-passthru/releases
 1. Unzip package and run install.bat as administrator
