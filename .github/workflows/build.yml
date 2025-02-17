@@ -3,7 +3,7 @@ name: Build dpdu-passthru
 on: 
   push:
     branches:
-      - main
+      - master
       - ci_test
 
 jobs:
@@ -17,11 +17,17 @@ jobs:
     - name: Setup MSVC Developer Command Prompt
       uses: ilammy/msvc-dev-cmd@v1  # Sets up the Visual Studio environment
 
+    - name: Get Version Info
+      shell: bash
+      run: |
+        VERSION=$(git describe --tags --always --dirty)
+        echo "BUILD_VERSION=$VERSION" >> $GITHUB_ENV
+
     - name: Build Solution
       run: msbuild driver/driver.sln /m /p:Configuration=Release /p:Platform=x86
       
     - name: Publish Build Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: dpdu-passthru-build
+        name: dpdu-passthru-${{ env.BUILD_VERSION }}
         path: driver/Release/*.dll
