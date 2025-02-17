@@ -70,5 +70,6 @@
     <None Include="dpdu.def">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="..\.github\workflows\build.yml" />
   </ItemGroup>
 </Project>
