@@ -121,8 +121,15 @@
       <ModuleDefinitionFile>dpdu.def</ModuleDefinitionFile>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /y $(TargetDir)$(ProjectName).dll "C:\Program Files (x86)\macchina\dpdu\*"</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>echo #define BUILD_VERSION "%BUILD_VERSION%" &gt; version.h</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Message>Create version.h</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -187,6 +194,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\.github\workflows\build.yml" />
     <None Include="dpdu.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
