@@ -121,7 +121,8 @@
       <ModuleDefinitionFile>dpdu.def</ModuleDefinitionFile>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /y $(TargetDir)$(ProjectName).dll "C:\Program Files (x86)\macchina\dpdu\*"</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>echo #define BUILD_VERSION "%BUILD_VERSION%" &gt; version.h</Command>
