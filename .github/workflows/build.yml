@@ -1,10 +1,12 @@
 name: Build dpdu-passthru
 
-on: 
+on:
   push:
     branches:
       - master
       - ci_test
+    tags:
+      - 'v*'  # Trigger release creation for tags starting with 'v'
 
 jobs:
   build:
@@ -25,9 +27,26 @@ jobs:
 
     - name: Build Solution
       run: msbuild driver/driver.sln /m /p:Configuration=Release /p:Platform=x86
-      
+
     - name: Publish Build Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: dpdu-passthru-${{ env.BUILD_VERSION }}
         path: driver/Release/*.dll
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')  # Trigger only when a tag starting with 'v' is pushed
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: driver/Release/*.dll
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
