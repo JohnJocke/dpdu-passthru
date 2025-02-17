@@ -13,5 +13,12 @@ D-PDU API driver for J2534 compatible devices. Currently supports only GM Tech2W
 * ISO15765 / CAN support
 
 # Instructions
-1. Build the project with Visual Studio 2022, using the Release build configuration
-2. Install the driver by running the .bat installer as administrator: https://github.com/JohnJocke/dpdu-passthru/blob/master/installer/install.bat
+## Prerequisities
+* Install latest Microsoft Visual C++ Redistributable (x86): https://aka.ms/vs/17/release/vc_redist.x86.exe
+## Install
+1. Dowload latest release: https://github.com/JohnJocke/dpdu-passthru/releases
+1. Unzip package and run install.bat as administrator
+    
+## Build
+1. Build the project with Visual Studio 2022, using the Release x86 build configuration
+1. Install the driver by running the .bat installer as administrator: https://github.com/JohnJocke/dpdu-passthru/blob/master/installer/install_dev.bat
