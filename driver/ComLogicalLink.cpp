@@ -8,6 +8,7 @@
 #include <thread>
 #include <string>
 #include <sstream>
+#include <chrono>
 
 ComLogicalLink::ComLogicalLink(UNUM32 hMod, UNUM32 hCLL, unsigned long deviceID, unsigned long protocolID) :
 	m_eventCallbackFnc(nullptr), m_hMod(hMod), m_hCLL(hCLL), m_status(PDU_CLLST_OFFLINE), m_deviceID(deviceID), m_protocolID(protocolID), m_channelID(0), m_running(false)
