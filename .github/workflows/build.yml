@@ -43,7 +43,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
       
-   - name: Download Artifacts from Build Job
+    - name: Download Artifacts from Build Job
       uses: actions/download-artifact@v2
       with:
         name: dpdu-passthru-${{ needs.build.outputs.BUILD_VERSION }}
