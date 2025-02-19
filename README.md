@@ -26,3 +26,8 @@ D-PDU API driver for J2534 compatible devices. Currently supports only GM Tech2W
 ## Build
 1. Build the project with Visual Studio 2022, using the Release x86 build configuration
 1. Install the driver by running the .bat installer as administrator: https://github.com/JohnJocke/dpdu-passthru/blob/master/installer/install_dev.bat
+
+## Configuration
+* Settings file can be found from C:\Users\Public\dpdu_settings.ini
+*  Settings:
+   * DisableTesterpresent: Set to 1 to disable sending testerpresent messages to the ECU
