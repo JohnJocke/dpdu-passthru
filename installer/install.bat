@@ -20,5 +20,13 @@ if errorlevel 1 (
 	exit
 )
 
+xcopy /s/y "dpdu_settings.ini" "C:\Users\Public"
+if errorlevel 1 (
+	echo Error copying dpdu_settings.ini
+	pause
+	exit
+)
+
+
 echo Install complete!
 pause

@@ -33,7 +33,7 @@ jobs:
 
     - name: Create Zip Archive
       run: |
-        powershell -Command "Compress-Archive -Path driver/Release/*.dll, installer/install.bat, installer/pdu_api_root.xml -DestinationPath dpdu-passthru-${{ env.BUILD_VERSION }}.zip"
+        powershell -Command "Compress-Archive -Path driver/Release/*.dll, installer/install.bat, installer/pdu_api_root.xml, installer/dpdu_settings.ini -DestinationPath dpdu-passthru-${{ env.BUILD_VERSION }}.zip"
 
     - name: Publish Build Artifacts
       uses: actions/upload-artifact@v4
