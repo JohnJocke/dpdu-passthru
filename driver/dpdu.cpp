@@ -460,7 +460,7 @@ T_PDU_ERROR __stdcall PDUDestroyItem(PDU_ITEM* pItem)
 		{
 			PDU_EVENT_ITEM* pIt = (PDU_EVENT_ITEM*)pItem;
 			PDU_RESULT_DATA* pData = (PDU_RESULT_DATA*)pIt->pData;
-			delete pData->pDataBytes;
+			delete[] pData->pDataBytes;
 			pData->pDataBytes = nullptr;
 			delete pIt->pData;
 			pIt->pData = nullptr;
@@ -468,6 +468,11 @@ T_PDU_ERROR __stdcall PDUDestroyItem(PDU_ITEM* pItem)
 			pIt = nullptr;
 
 			LOGGER.logInfo("PDUDestroyItem", "Deleted PDU_IT_RESULT pItem %p", pItem);
+			break;
+		}
+		default:
+		{
+			LOGGER.logWarn("PDUDestroyItem", "Unhandled pItem %p, ItemType 0x%x", pItem, pItem->ItemType);
 		}
 	}
 

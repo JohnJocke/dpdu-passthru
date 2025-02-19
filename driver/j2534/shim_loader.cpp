@@ -182,7 +182,7 @@ void shim_enumPassThruInterfaces(std::set<cPassThruInfo> &registryList)
 			}
 
 			RegCloseKey(hKey3);
-			delete KeyValue;
+			delete[] KeyValue;
 
 			// If everything was successful then add it to the list
 			cPassThruInfo registryEntry(strVendor, strName, strFunctionLibrary, strConfigApplication);
@@ -191,7 +191,7 @@ void shim_enumPassThruInterfaces(std::set<cPassThruInfo> &registryList)
 	} while (hKey2RetVal == ERROR_SUCCESS);
 
 	RegCloseKey(hKey2);
-	delete KeyValue;
+	delete[] KeyValue;
 }
 
 double GetTimeSinceInit()

@@ -2,6 +2,7 @@
 #include "pdu_api.h"
 #include "ComPrimitive.h"
 #include "Logger.h"
+#include "Settings.h"
 #include "j2534/j2534_v0404.h"
 #include "j2534/shim_loader.h"
 
@@ -117,15 +118,18 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 
 	if (m_CopCtrlData.NumSendCycles > 0)
 	{
-		if (TesterPresentSimulation(pEvt))
+		if (Settings::DisableTesterpresent)
 		{
-			--m_CopCtrlData.NumSendCycles;
-			if (m_CopCtrlData.NumReceiveCycles != -1)
+			if (TesterPresentSimulation(pEvt))
 			{
-				--m_CopCtrlData.NumReceiveCycles;
-			}
+				--m_CopCtrlData.NumSendCycles;
+				if (m_CopCtrlData.NumReceiveCycles != -1)
+				{
+					--m_CopCtrlData.NumReceiveCycles;
+				}
 
-			return ret;
+				return ret;
+			}
 		}
 
 		std::stringstream ss;
@@ -207,7 +211,7 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 				LOGGER.logError("ComPrimitive/SendRecv", "_PassThruReadMsgs failed %u", ret);
 			}
 		}
-		else if (ret == ERR_TIMEOUT)
+		else if (ret == ERR_TIMEOUT || ret == ERR_BUFFER_EMPTY)
 		{
 			LOGGER.logInfo("ComPrimitive/SendRecv", "Timeout while waiting SOM");
 			ret = STATUS_NOERROR;
