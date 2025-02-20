@@ -12,7 +12,10 @@
 constexpr int POLL_TIMEOUT_MS = 10;
 constexpr int TIMEOUT_MS = 1000;
 
+const std::vector<UNUM8> MSG_TESTER_PRESENT_41 = { 0x80, 0x41, 0xf1, 0x01, 0x3e, 0xf1 };
+
 UNUM32 ComPrimitive::m_hCoPCtr = 0;
+UNUM8 ComPrimitive::m_lastDestAddr = 0;
 
 ComPrimitive::ComPrimitive(UNUM32 CoPType, UNUM32 CoPDataSize, UNUM8* pCoPData, PDU_COP_CTRL_DATA* pCopCtrlData,
                            void* pCoPTag, unsigned long protocolID) :
@@ -70,6 +73,8 @@ long ComPrimitive::StartComm(unsigned long channelID, PDU_EVENT_ITEM* & pEvt)
 		--m_CopCtrlData.NumSendCycles;
 		--m_CopCtrlData.NumReceiveCycles;
 
+		m_lastDestAddr = m_CoPData[1];
+
 		std::stringstream ss;
 		ss << "RX: ";
 		for (int i = 0; i < rxMsg.DataSize; ++i)
@@ -101,7 +106,7 @@ long ComPrimitive::StartComm(unsigned long channelID, PDU_EVENT_ITEM* & pEvt)
 	return ret;
 }
 
-void checksum(UNUM8* data, UNUM32 dataSize)
+void checksum(std::vector<UNUM8>& data, UNUM32 dataSize)
 {
 	UNUM8 csum = 0;
 	for (UNUM8 i = 0; i < dataSize; ++i)
@@ -118,18 +123,15 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 
 	if (m_CopCtrlData.NumSendCycles > 0)
 	{
-		if (Settings::DisableTesterpresent)
+		if (TesterPresentWorkaround(pEvt))
 		{
-			if (TesterPresentSimulation(pEvt))
+			--m_CopCtrlData.NumSendCycles;
+			if (m_CopCtrlData.NumReceiveCycles != -1)
 			{
-				--m_CopCtrlData.NumSendCycles;
-				if (m_CopCtrlData.NumReceiveCycles != -1)
-				{
-					--m_CopCtrlData.NumReceiveCycles;
-				}
-
-				return ret;
+				--m_CopCtrlData.NumReceiveCycles;
 			}
+
+			return ret;
 		}
 
 		std::stringstream ss;
@@ -157,7 +159,6 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 		{
 			LOGGER.logError("ComPrimitive/SendRecv", "_PassThruWriteMsgs failed %u", ret);
 		}
-
 	}
 
 	if (m_CopCtrlData.NumReceiveCycles > 0 || m_CopCtrlData.NumReceiveCycles == -1)
@@ -262,32 +263,47 @@ void ComPrimitive::Finish(PDU_EVENT_ITEM*& pEvt)
 	}
 }
 
-bool ComPrimitive::TesterPresentSimulation(PDU_EVENT_ITEM*& pEvt)
+bool ComPrimitive::TesterPresentWorkaround(PDU_EVENT_ITEM*& pEvt)
 {
 	bool ret = false;
 
-	if (m_CoPData.size() >= 6 && m_CoPData[4] == 0x3e)
+	if (Settings::DisableTesterpresent)
 	{
-		pEvt = new PDU_EVENT_ITEM;
-		pEvt->hCop = m_hCoP;
-		pEvt->ItemType = PDU_IT_RESULT;
-		pEvt->pCoPTag = m_pCoPTag;
-		pEvt->pData = new PDU_RESULT_DATA;
+		if (m_CoPData == MSG_TESTER_PRESENT_41)
+		{
+			pEvt = new PDU_EVENT_ITEM;
+			pEvt->hCop = m_hCoP;
+			pEvt->ItemType = PDU_IT_RESULT;
+			pEvt->pCoPTag = m_pCoPTag;
+			pEvt->pData = new PDU_RESULT_DATA;
 
-		PDU_RESULT_DATA* pRes = (PDU_RESULT_DATA*)(pEvt->pData);
-		pRes->AcceptanceId = 1;
-		pRes->NumDataBytes = 5;
-		pRes->pDataBytes = new UNUM8[5]{ 0x81, 0xf1, 0x41, 0x7e, 0x31 };
-		pRes->pExtraInfo = nullptr;
-		pRes->RxFlag.NumFlagBytes = 0;
-		pRes->StartMsgTimestamp = 0;
-		pRes->TimestampFlags.NumFlagBytes = 0;
-		pRes->TxMsgDoneTimestamp = 0;
-		pRes->UniqueRespIdentifier = PDU_ID_UNDEF;
+			PDU_RESULT_DATA* pRes = (PDU_RESULT_DATA*)(pEvt->pData);
+			pRes->AcceptanceId = 1;
+			pRes->NumDataBytes = 5;
+			pRes->pDataBytes = new UNUM8[5]{ 0x81, 0xf1, 0x41, 0x7e, 0x31 };
+			pRes->pExtraInfo = nullptr;
+			pRes->RxFlag.NumFlagBytes = 0;
+			pRes->StartMsgTimestamp = 0;
+			pRes->TimestampFlags.NumFlagBytes = 0;
+			pRes->TxMsgDoneTimestamp = 0;
+			pRes->UniqueRespIdentifier = PDU_ID_UNDEF;
 
-		LOGGER.logInfo("ComPrimitive/TesterPresentSimulation", "Simulating TesterPresent");
+			LOGGER.logInfo("ComPrimitive/TesterPresentWorkaround", "Simulating TesterPresent for DPDU host, message not sent to ECU");
 
-		ret = true;
+			ret = true;
+		}
+	}
+	else if (Settings::FixTesterpresentDestination)
+	{
+		if (m_CoPData == MSG_TESTER_PRESENT_41)
+		{
+			m_CoPData[1] = m_lastDestAddr;
+			checksum(m_CoPData, m_CoPData.size() - 1);
+
+			LOGGER.logInfo("ComPrimitive/TesterPresentWorkaround", "TesterPresent destination fixed to 0x%x", m_lastDestAddr);
+
+			ret = false;
+		}
 	}
 
 	return ret;

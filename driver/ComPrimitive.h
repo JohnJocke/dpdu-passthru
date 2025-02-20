@@ -22,7 +22,7 @@ public:
 	void Destroy();
 
 private:
-	bool TesterPresentSimulation(PDU_EVENT_ITEM*& pEvt);
+	bool TesterPresentWorkaround(PDU_EVENT_ITEM*& pEvt);
 	void GenerateStatusEvent(PDU_EVENT_ITEM*& pEvt);
 
 	T_PDU_STATUS m_state;
@@ -36,6 +36,7 @@ private:
 	unsigned long m_protocolID;
 
 	static UNUM32 m_hCoPCtr;
+	static UNUM8 m_lastDestAddr;
 
 };
 

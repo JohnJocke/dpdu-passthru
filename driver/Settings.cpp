@@ -7,10 +7,13 @@
 #define SETTINGS_FILE "C:\\Users\\Public\\dpdu_settings.ini"
 
 bool Settings::DisableTesterpresent = false;
+bool Settings::FixTesterpresentDestination = false;
 
 void Settings::Load()
 {
     DisableTesterpresent = GetPrivateProfileInt("Settings", "DisableTesterpresent", 0, SETTINGS_FILE);
-    LOGGER.logInfo("Settings", "DisableTesterpresent %d", DisableTesterpresent);
+    FixTesterpresentDestination = GetPrivateProfileInt("Settings", "FixTesterpresentDestination", 0, SETTINGS_FILE);
+    LOGGER.logInfo("Settings", "DisableTesterpresent: %d", DisableTesterpresent);
+    LOGGER.logInfo("Settings", "FixTesterpresentDestination: %d", FixTesterpresentDestination);
 }
 

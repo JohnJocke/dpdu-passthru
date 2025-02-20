@@ -5,5 +5,6 @@ public:
 	static void Load();
 
 	static bool DisableTesterpresent;
+	static bool FixTesterpresentDestination;
 };
 
