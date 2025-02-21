@@ -6,5 +6,6 @@ public:
 
 	static bool DisableTesterpresent;
 	static bool FixTesterpresentDestination;
+	static bool AutoRestartComm;
 };
 

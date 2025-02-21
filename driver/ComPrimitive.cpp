@@ -15,7 +15,7 @@ constexpr int TIMEOUT_MS = 1000;
 const std::vector<UNUM8> MSG_TESTER_PRESENT_41 = { 0x80, 0x41, 0xf1, 0x01, 0x3e, 0xf1 };
 
 UNUM32 ComPrimitive::m_hCoPCtr = 0;
-UNUM8 ComPrimitive::m_lastDestAddr = 0;
+UNUM8 ComPrimitive::m_destAddr = 0;
 
 ComPrimitive::ComPrimitive(UNUM32 CoPType, UNUM32 CoPDataSize, UNUM8* pCoPData, PDU_COP_CTRL_DATA* pCopCtrlData,
                            void* pCoPTag, unsigned long protocolID) :
@@ -73,7 +73,7 @@ long ComPrimitive::StartComm(unsigned long channelID, PDU_EVENT_ITEM* & pEvt)
 		--m_CopCtrlData.NumSendCycles;
 		--m_CopCtrlData.NumReceiveCycles;
 
-		m_lastDestAddr = m_CoPData[1];
+		m_destAddr = m_CoPData[1];
 
 		std::stringstream ss;
 		ss << "RX: ";
@@ -131,6 +131,11 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 				--m_CopCtrlData.NumReceiveCycles;
 			}
 
+			return ret;
+		}
+
+		if (CheckDestinationAddress(channelID) != STATUS_NOERROR)
+		{
 			return ret;
 		}
 
@@ -297,10 +302,10 @@ bool ComPrimitive::TesterPresentWorkaround(PDU_EVENT_ITEM*& pEvt)
 	{
 		if (m_CoPData == MSG_TESTER_PRESENT_41)
 		{
-			m_CoPData[1] = m_lastDestAddr;
+			m_CoPData[1] = m_destAddr;
 			checksum(m_CoPData, m_CoPData.size() - 1);
 
-			LOGGER.logInfo("ComPrimitive/TesterPresentWorkaround", "TesterPresent destination fixed to 0x%x", m_lastDestAddr);
+			LOGGER.logInfo("ComPrimitive/TesterPresentWorkaround", "TesterPresent destination fixed to 0x%x", m_destAddr);
 
 			ret = false;
 		}
@@ -317,4 +322,44 @@ void ComPrimitive::GenerateStatusEvent(PDU_EVENT_ITEM*& pEvt)
 	pEvt->pCoPTag = m_pCoPTag;
 	pEvt->pData = new PDU_STATUS_DATA;
 	*(PDU_STATUS_DATA*)(pEvt->pData) = m_state;
+}
+
+long ComPrimitive::CheckDestinationAddress(unsigned long channelID)
+{
+	long ret = STATUS_NOERROR;
+
+	if (Settings::AutoRestartComm)
+	{
+		if (m_CoPData[1] != m_destAddr)
+		{
+			LOGGER.logInfo("ComPrimitive/CheckDestinationAddress", "Destination address mismatch, session 0x%x, msg 0x%x", m_destAddr, m_CoPData[1]);
+			LOGGER.logInfo("ComPrimitive/CheckDestinationAddress", "Restarting comm to destination 0x%x", m_CoPData[1]);
+
+			std::vector<UNUM8> data = { 0x81, 0x00, 0xf1, 0x81, 0x00};
+			data[1] = m_CoPData[1];
+			checksum(data, data.size() - 1);
+
+			PDU_COP_CTRL_DATA ctrlData;
+			ctrlData.NumReceiveCycles = 1;
+			ctrlData.NumSendCycles = 1;
+
+			auto cop = ComPrimitive(PDU_COPT_STARTCOMM, data.size(), data.data(), &ctrlData, nullptr, m_protocolID);
+
+			PDU_EVENT_ITEM* pEvt = nullptr;
+			ret = cop.StartComm(channelID, pEvt);
+			if (ret == STATUS_NOERROR)
+			{
+				PDU_EVENT_ITEM* pIt = (PDU_EVENT_ITEM*)pEvt;
+				PDU_RESULT_DATA* pData = (PDU_RESULT_DATA*)pIt->pData;
+				delete[] pData->pDataBytes;
+				pData->pDataBytes = nullptr;
+				delete pIt->pData;
+				pIt->pData = nullptr;
+				delete pIt;
+				pIt = nullptr;
+			}
+		}
+	}
+
+	return ret;
 }

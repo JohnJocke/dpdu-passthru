@@ -24,6 +24,7 @@ public:
 private:
 	bool TesterPresentWorkaround(PDU_EVENT_ITEM*& pEvt);
 	void GenerateStatusEvent(PDU_EVENT_ITEM*& pEvt);
+	long CheckDestinationAddress(unsigned long channelID);
 
 	T_PDU_STATUS m_state;
 
@@ -36,7 +37,7 @@ private:
 	unsigned long m_protocolID;
 
 	static UNUM32 m_hCoPCtr;
-	static UNUM8 m_lastDestAddr;
+	static UNUM8 m_destAddr;
 
 };
 
