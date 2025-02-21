@@ -32,3 +32,4 @@ D-PDU API driver for J2534 compatible devices. Currently supports only GM Tech2W
 *  Settings:
    * DisableTesterpresent: Set to 1 to disable sending testerpresent messages to the ECU
    * FixTesterpresentDestination: Set to 1 if D-PDU host sends testerpresent messages to wrong destination
+   * AutoRestartComm: Set to 1 to automatically restart communication to correct destination
