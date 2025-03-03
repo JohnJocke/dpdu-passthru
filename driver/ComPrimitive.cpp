@@ -121,7 +121,7 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 {
 	long ret = STATUS_NOERROR;
 
-	if (m_CopCtrlData.NumSendCycles > 0)
+	if (m_state == PDU_COPST_EXECUTING && m_CopCtrlData.NumSendCycles > 0)
 	{
 		if (TesterPresentWorkaround(pEvt))
 		{
@@ -166,7 +166,7 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 		}
 	}
 
-	if (m_CopCtrlData.NumReceiveCycles > 0 || m_CopCtrlData.NumReceiveCycles == -1)
+	if (m_state == PDU_COPST_EXECUTING && (m_CopCtrlData.NumReceiveCycles > 0 || m_CopCtrlData.NumReceiveCycles == -1))
 	{
 		PASSTHRU_MSG rxMsg = {0};
 		unsigned long numMsgs = 1;
@@ -229,7 +229,7 @@ long ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 
 void ComPrimitive::Execute(PDU_EVENT_ITEM*& pEvt)
 {
-	if (m_state != PDU_COPST_EXECUTING)
+	if (m_state == PDU_COPST_IDLE)
 	{
 		m_state = PDU_COPST_EXECUTING;
 		GenerateStatusEvent(pEvt);
@@ -260,7 +260,7 @@ void ComPrimitive::Finish(PDU_EVENT_ITEM*& pEvt)
 {
 	if (m_CopCtrlData.NumSendCycles == 0 && m_CopCtrlData.NumReceiveCycles == 0)
 	{
-		if (m_state != PDU_COPST_FINISHED)
+		if (m_state == PDU_COPST_EXECUTING || m_state == PDU_COPST_IDLE)
 		{
 			m_state = PDU_COPST_FINISHED;
 			GenerateStatusEvent(pEvt);
