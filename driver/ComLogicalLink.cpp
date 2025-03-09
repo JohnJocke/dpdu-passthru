@@ -5,33 +5,60 @@
 #include "Logger.h"
 #include "pdu_api.h"
 
+#include "ComPrimitive.h"
+#include "ISO14230ComPrimitive.h"
+#include "KW82ComPrimitive.h"
+
 #include <thread>
 #include <string>
 #include <sstream>
 #include <chrono>
 
-ComLogicalLink::ComLogicalLink(UNUM32 hMod, UNUM32 hCLL, unsigned long deviceID, unsigned long protocolID) :
-	m_eventCallbackFnc(nullptr), m_hMod(hMod), m_hCLL(hCLL), m_status(PDU_CLLST_OFFLINE), m_deviceID(deviceID), m_protocolID(protocolID), m_channelID(0), m_running(false)
+ComLogicalLink::ComLogicalLink(UNUM32 hMod, UNUM32 hCLL, unsigned long deviceID, enum Protocol protocol) :
+m_eventCallbackFnc(nullptr), m_hMod(hMod), m_hCLL(hCLL), m_status(PDU_CLLST_OFFLINE), m_protocol(protocol), m_deviceID(deviceID), m_channelID(0), m_running(false)
 {
+	switch (protocol)
+	{
+	case CLL_ISO14230:
+		m_protocolID = ISO14230;
+		break;
+	case CLL_KW82:
+		m_protocolID = ISO9141;
+		break;
+	default:
+		m_protocolID = 0;
+		break;
+	}
 }
 
 long ComLogicalLink::Connect()
 {
 	long ret = STATUS_NOERROR;
-	switch (m_protocolID)
+	switch (m_protocol)
 	{
-		case ISO14230:
+		case CLL_ISO14230:
 			ret = _PassThruConnect(m_deviceID, m_protocolID, ISO9141_NO_CHECKSUM, 10400, &m_channelID);
+			break;
+		case CLL_KW82:
+			ret = _PassThruConnect(m_deviceID, m_protocolID, ISO9141_NO_CHECKSUM, 8192, &m_channelID);
 			break;
 		default:
 			ret = ERR_INVALID_PROTOCOL_ID;
 			break;
 	}
 
+	if (ret != STATUS_NOERROR)
+	{
+		char err[256];
+		_PassThruGetLastError(err);
+		LOGGER.logError("ComLogicalLink/Connect", "_PassThruConnect failed %u, %s", ret, err);
+		return ret;
+	}
+
 	if (ret == STATUS_NOERROR)
 	{
 		m_running = true;
-		m_runLoop = std::thread(&ComLogicalLink::run, this);
+		m_runLoop = std::jthread(&ComLogicalLink::run, this);
 
 		m_status = PDU_CLLST_ONLINE;
 
@@ -52,36 +79,33 @@ long ComLogicalLink::Disconnect()
 {
 	long ret = STATUS_NOERROR;
 
-	ret = _PassThruDisconnect(m_channelID);
+	m_running = false;
 
-	if (ret == STATUS_NOERROR)
 	{
-		m_running = false;
-		m_runLoop.join();
-
+		const std::lock_guard<std::mutex> lock(m_copLock);
+		for (auto it = m_copQueue.begin(); it != m_copQueue.end(); ++it)
 		{
-			const std::lock_guard<std::mutex> lock(m_copLock);
-			for (auto it = m_copQueue.begin(); it != m_copQueue.end(); ++it)
-			{
-				PDU_EVENT_ITEM* pEvt = nullptr;
-				(*it)->Cancel(pEvt);
-				QueueEvent(pEvt);
-			}
+			PDU_EVENT_ITEM* pEvt = nullptr;
+			(*it)->Cancel(pEvt);
+			QueueEvent(pEvt);
 		}
-
-		m_status = PDU_CLLST_OFFLINE;
-
-		PDU_EVENT_ITEM* pEvt = new PDU_EVENT_ITEM;
-		pEvt->hCop = PDU_HANDLE_UNDEF;
-		pEvt->ItemType = PDU_IT_STATUS;
-		pEvt->pCoPTag = nullptr;
-		pEvt->pData = new PDU_STATUS_DATA;
-		*(PDU_STATUS_DATA*)(pEvt->pData) = m_status;
-
-		SignalEvent(pEvt);
 	}
 
-	return ret;
+	//sleep to allow objects to cancel, FIXME
+	std::this_thread::sleep_for(std::chrono::seconds(2));
+
+	m_status = PDU_CLLST_OFFLINE;
+
+	PDU_EVENT_ITEM* pEvt = new PDU_EVENT_ITEM;
+	pEvt->hCop = PDU_HANDLE_UNDEF;
+	pEvt->ItemType = PDU_IT_STATUS;
+	pEvt->pCoPTag = nullptr;
+	pEvt->pData = new PDU_STATUS_DATA;
+	*(PDU_STATUS_DATA*)(pEvt->pData) = m_status;
+
+	SignalEvent(pEvt);
+	
+	return _PassThruDisconnect(m_channelID);
 }
 
 T_PDU_ERROR ComLogicalLink::GetStatus(T_PDU_STATUS& status)
@@ -151,12 +175,23 @@ T_PDU_ERROR ComLogicalLink::Cancel(UNUM32 hCoP)
 
 UNUM32 ComLogicalLink::StartComPrimitive(UNUM32 CoPType, UNUM32 CoPDataSize, UNUM8* pCoPData, PDU_COP_CTRL_DATA* pCopCtrlData, void* pCoPTag)
 {
-	auto cop = std::shared_ptr<ComPrimitive>(new ComPrimitive(CoPType, CoPDataSize, pCoPData, pCopCtrlData, pCoPTag, m_protocolID));
+    std::shared_ptr<ComPrimitive> cop;
 
-	{
-		const std::lock_guard<std::mutex> lock(m_copLock);
-		m_copQueue.push_back(cop);
-	}
+    switch (m_protocol)  
+    {  
+       case CLL_ISO14230:  
+           cop = std::make_shared<ISO14230ComPrimitive>(CoPType, CoPDataSize, pCoPData, pCopCtrlData, pCoPTag, m_protocolID);  
+           break;  
+       case CLL_KW82:  
+           cop = std::make_shared<KW82ComPrimitive>(CoPType, CoPDataSize, pCoPData, pCopCtrlData, pCoPTag, m_protocolID);  
+           break; 
+	   default:
+		   LOGGER.logError("ComLogicalLink/StartComPrimitive", "Invalid protocol %u", m_protocol);
+		   return 0;
+    }
+
+	const std::lock_guard<std::mutex> lock(m_copLock);
+	m_copQueue.push_back(cop);
 
 	return cop->getHandle();
 }
@@ -231,6 +266,50 @@ void ComLogicalLink::SignalEvent(PDU_EVENT_ITEM* pEvt)
 
 	QueueEvent(pEvt);
 	SignalEvents();
+}
+
+long ComLogicalLink::SetComParam()
+{
+	long ret = STATUS_NOERROR;
+
+	if (m_protocol == CLL_KW82)
+	{
+		SCONFIG config[9];
+		config[0].Parameter = W0;
+		config[0].Value = 500;
+		config[1].Parameter = W1;
+		config[1].Value = 500;
+		config[2].Parameter = W2;
+		config[2].Value = 500;
+		config[3].Parameter = W3;
+		config[3].Value = 500;
+		config[4].Parameter = W4;
+		config[4].Value = 500;
+
+		config[5].Parameter = P1_MAX;
+		config[5].Value = 1;
+		config[6].Parameter = P3_MIN;
+		config[6].Value = 0;
+		config[7].Parameter = P4_MIN;
+		config[7].Value = 0;
+
+		config[8].Parameter = FIVE_BAUD_MOD;
+		config[8].Value = 1;
+
+		SCONFIG_LIST configList;
+		configList.NumOfParams = 9;
+		configList.ConfigPtr = config;
+
+		ret = _PassThruIoctl(m_channelID, SET_CONFIG, &configList, NULL);
+		if (ret != STATUS_NOERROR)
+		{
+			char err[256];
+			_PassThruGetLastError(err);
+			LOGGER.logError("ComLogicalLink/SetComParam", "Failed setting com parameters, ret %u, %s", ret, err);
+		}
+	}
+
+	return ret;
 }
 
 void ComLogicalLink::SignalEvents()
@@ -335,39 +414,17 @@ void ComLogicalLink::ProcessCop(std::shared_ptr<ComPrimitive> cop)
 long ComLogicalLink::StartComm(std::shared_ptr<ComPrimitive> cop)
 {
 	long ret = STATUS_NOERROR;
-	if (m_protocolID == ISO14230)
+
+	PDU_EVENT_ITEM* pEvt = nullptr;
+
+	_PassThruIoctl(m_channelID, CLEAR_RX_BUFFER, nullptr, nullptr);
+
+	ret = cop->StartComm(m_channelID, pEvt);
+	if (ret == STATUS_NOERROR)
 	{
-		PDU_EVENT_ITEM* pEvt = nullptr;
+		QueueEvent(pEvt);
 
-		ret = cop->StartComm(m_channelID, pEvt);
-		if (ret == STATUS_NOERROR)
-		{
-			QueueEvent(pEvt);
-
-			m_status = PDU_CLLST_COMM_STARTED;
-
-			pEvt = new PDU_EVENT_ITEM;
-			pEvt->hCop = PDU_HANDLE_UNDEF;
-			pEvt->ItemType = PDU_IT_STATUS;
-			pEvt->pCoPTag = nullptr;
-			pEvt->pData = new PDU_STATUS_DATA;
-			*(PDU_STATUS_DATA*)(pEvt->pData) = m_status;
-
-			SignalEvent(pEvt);
-		}
-	}
-
-	return ret;
-}
-
-long ComLogicalLink::StopComm(std::shared_ptr<ComPrimitive> cop)
-{
-	long ret = STATUS_NOERROR;
-	if (m_protocolID == ISO14230)
-	{
-		m_status = PDU_CLLST_ONLINE;
-
-		PDU_EVENT_ITEM* pEvt = nullptr;
+		m_status = PDU_CLLST_COMM_STARTED;
 
 		pEvt = new PDU_EVENT_ITEM;
 		pEvt->hCop = PDU_HANDLE_UNDEF;
@@ -377,6 +434,33 @@ long ComLogicalLink::StopComm(std::shared_ptr<ComPrimitive> cop)
 		*(PDU_STATUS_DATA*)(pEvt->pData) = m_status;
 
 		SignalEvent(pEvt);
+	}
+	
+	return ret;
+}
+
+long ComLogicalLink::StopComm(std::shared_ptr<ComPrimitive> cop)
+{
+	long ret = STATUS_NOERROR;
+
+	PDU_EVENT_ITEM* pEvt = nullptr;
+
+	ret = cop->StopComm(m_channelID, pEvt);
+	if (ret == STATUS_NOERROR)
+	{
+		m_status = PDU_CLLST_ONLINE;
+
+		PDU_EVENT_ITEM* pEvt = nullptr;
+		pEvt = new PDU_EVENT_ITEM;
+		pEvt->hCop = PDU_HANDLE_UNDEF;
+		pEvt->ItemType = PDU_IT_STATUS;
+		pEvt->pCoPTag = nullptr;
+		pEvt->pData = new PDU_STATUS_DATA;
+		*(PDU_STATUS_DATA*)(pEvt->pData) = m_status;
+
+		SignalEvent(pEvt);
+
+		ret = _PassThruIoctl(m_channelID, CLEAR_RX_BUFFER, nullptr, nullptr);
 	}
 
 	return ret;

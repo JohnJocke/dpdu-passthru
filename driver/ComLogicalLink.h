@@ -7,11 +7,17 @@
 #include <queue>
 #include <mutex>
 
+enum Protocol
+{
+	CLL_ISO14230 = 0x01,
+	CLL_KW82 = 0x02
+};
+
 class ComLogicalLink
 {
 public:
 
-	ComLogicalLink(UNUM32 hMod, UNUM32 hCLL, unsigned long deviceID, unsigned long protocolID);
+	ComLogicalLink(UNUM32 hMod, UNUM32 hCLL, unsigned long deviceID, enum Protocol protocol);
 
 	long Connect();
 	long Disconnect();
@@ -27,6 +33,8 @@ public:
 	bool GetEvent(PDU_EVENT_ITEM* & pEvt);
 	void SignalEvent(PDU_EVENT_ITEM* pEvt);
 
+	long SetComParam();
+
 private:
 	void SignalEvents();
 	void QueueEvent(PDU_EVENT_ITEM* pEvt);
@@ -41,7 +49,7 @@ private:
 	CALLBACKFNC m_eventCallbackFnc;
 
 	bool m_running;
-	std::thread m_runLoop;
+	std::jthread m_runLoop;
 
 	std::mutex m_eventLock;
 	std::queue<PDU_EVENT_ITEM*> m_eventQueue;
@@ -52,6 +60,8 @@ private:
 	UNUM32 m_hMod;
 	UNUM32 m_hCLL;
 	T_PDU_STATUS m_status;
+
+	Protocol m_protocol;
 
 	//J2534 specific
 	unsigned long m_deviceID;

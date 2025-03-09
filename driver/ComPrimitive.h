@@ -11,8 +11,9 @@ public:
 	UNUM32 getHandle();
 	UNUM32 getType();
 
-	long StartComm(unsigned long channelID, PDU_EVENT_ITEM* & pEvt);
-	long SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt);
+	virtual long StartComm(unsigned long channelID, PDU_EVENT_ITEM* & pEvt) = 0;
+	virtual long StopComm(unsigned long channelID, PDU_EVENT_ITEM*& pEvt) = 0;
+	virtual long SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt) = 0;
 
 	T_PDU_STATUS GetStatus();
 
@@ -21,10 +22,8 @@ public:
 	void Cancel(PDU_EVENT_ITEM*& pEvt);
 	void Destroy();
 
-private:
-	bool TesterPresentWorkaround(PDU_EVENT_ITEM*& pEvt);
+protected:
 	void GenerateStatusEvent(PDU_EVENT_ITEM*& pEvt);
-	long CheckDestinationAddress(unsigned long channelID);
 
 	T_PDU_STATUS m_state;
 

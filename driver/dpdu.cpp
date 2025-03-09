@@ -193,20 +193,24 @@ T_PDU_ERROR __stdcall PDUGetResourceStatus(PDU_RSC_STATUS_ITEM* pResourceStatus)
 T_PDU_ERROR __stdcall PDUCreateComLogicalLink(UNUM32 hMod, PDU_RSC_DATA* pRscData, UNUM32 resourceId, void* pCllTag, UNUM32* phCLL, PDU_FLAG_DATA* pCllCreateFlag)
 {
 	UNUM32 idx = m_commChannels.size();
-	unsigned long protocolId = 0;
+	Protocol protocol = CLL_ISO14230;
 
 	auto it = m_objectIdMap.find(pRscData->ProtocolId);
 	if (it != m_objectIdMap.end())
 	{
 		if (it->second == std::string("ISO_14230_3_on_ISO_14230_2"))
 		{
-			protocolId = ISO14230;
+			protocol = CLL_ISO14230;
+		}
+		else if (it->second == std::string("KW82_on_KW_UART"))
+		{
+			protocol = CLL_KW82;
 		}
 
-		LOGGER.logInfo("PDUCreateComLogicalLink", "Detected J2534 ProtocolID %u, DPDU: %s", protocolId, it->second.c_str());
+		LOGGER.logInfo("PDUCreateComLogicalLink", "Detected CLL Protocol %u, DPDU: %s", protocol, it->second.c_str());
 	}
 
-	auto cll = std::shared_ptr<ComLogicalLink>(new ComLogicalLink(hMod, idx, m_deviceID, protocolId));
+	auto cll = std::shared_ptr<ComLogicalLink>(new ComLogicalLink(hMod, idx, m_deviceID, protocol));
 	m_commChannels.insert({ idx, cll });
 
 	*phCLL = idx;
@@ -236,6 +240,7 @@ T_PDU_ERROR __stdcall PDUDestroyComLogicalLink(UNUM32 hMod, UNUM32 hCLL)
 	auto it = m_commChannels.find(hCLL);
 	if (it != m_commChannels.end())
 	{
+		it->second->Disconnect();
 		it->second.reset();
 		m_commChannels.erase(it);
 	}
@@ -307,14 +312,33 @@ T_PDU_ERROR __stdcall PDUUnlockResource(UNUM32 hMod, UNUM32 hCLL, UNUM32 LockMas
 
 T_PDU_ERROR __stdcall PDUGetComParam(UNUM32 hMod, UNUM32 hCLL, UNUM32 ParamId, PDU_PARAM_ITEM** pParamItem)
 {
-	LOGGER.logWarn("STUB", "PDUGetComParam is unimplimented");
+	LOGGER.logInfo("PDUGetComParam", "hMod %u, hCLL %u, ParamId %u", hMod, hCLL, ParamId);
+
+	if (ParamId == 43)
+	{
+		*pParamItem = new PDU_PARAM_ITEM;
+		(*pParamItem)->ItemType = PDU_IT_PARAM;
+		(*pParamItem)->ComParamId = ParamId;
+		(*pParamItem)->ComParamClass = PDU_PC_BUSTYPE;
+		(*pParamItem)->ComParamDataType = PDU_PT_UNUM32;
+		(*pParamItem)->pComParamData = new UNUM32;
+		*(UNUM32*)((*pParamItem)->pComParamData) = 4800;
+	}
+
 	return PDU_STATUS_NOERROR;
 }
 
 T_PDU_ERROR __stdcall PDUSetComParam(UNUM32 hMod, UNUM32 hCLL, PDU_PARAM_ITEM* pParamItem)
 {
-	LOGGER.logWarn("PDUSetComParam", "hMod %u, hCLL %u, ComParamId %u, ComParamDataType %u, ComParamData %u",
-		hMod, hCLL, pParamItem->ComParamId, pParamItem->ComParamDataType, *(UNUM32*)(pParamItem->pComParamData));
+	LOGGER.logWarn("PDUSetComParam", "hMod %u, hCLL %u, ComParamId %u, ComParamClass %u, ComParamDataType %u, ComParamData %u",
+		hMod, hCLL, pParamItem->ComParamId, pParamItem->ComParamClass, pParamItem->ComParamDataType, *(UNUM32*)(pParamItem->pComParamData));
+
+	auto it = m_commChannels.find(hCLL);
+	if (it != m_commChannels.end())
+	{
+		it->second->SetComParam();
+	}
+
 	return PDU_STATUS_NOERROR;
 }
 
