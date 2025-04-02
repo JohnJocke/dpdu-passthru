@@ -33,6 +33,7 @@ class Logger
 private:
 	std::mutex mutex;
 	std::string argFormatToString(const char* fmt, va_list* args);
+	void getTimestamp(char* buffer, size_t bufferSize);
 public:
 	std::string bytesToString(uint8_t* bytes, unsigned long len);
 	void logInfo(std::string method, const char* fmt, ...);

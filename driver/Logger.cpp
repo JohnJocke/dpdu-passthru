@@ -57,9 +57,7 @@ std::string Logger::argFormatToString(const char* fmt, va_list* args) {
 
 void Logger::writeToFile(std::string message) {
 	char time[64] = { 0x00 };
-	SYSTEMTIME st;
-	GetSystemTime(&st);
-	sprintf_s(time, "[%02d:%02d:%02d.%3d] ", st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+	getTimestamp(time, sizeof(time));
 	std::ofstream handle;
 	this->mutex.lock();
 	try {
@@ -82,6 +80,18 @@ std::string Logger::bytesToString(uint8_t* bytes, unsigned long len) {
 		ret += buf;
 	}
 	return ret;
+}
+
+void Logger::getTimestamp(char* buffer, size_t bufferSize)
+{
+	SYSTEMTIME utc, localTime;
+	GetSystemTime(&utc);  // Get UTC time
+	SystemTimeToTzSpecificLocalTime(NULL, &utc, &localTime);  // Convert to local times
+
+	// Format timestamp in format: YYYY-MM-DD HH:MM:SS.sss
+	snprintf(buffer, bufferSize, "%04d-%02d-%02d %02d:%02d:%02d.%03d ",
+		localTime.wYear, localTime.wMonth, localTime.wDay,
+		localTime.wHour, localTime.wMinute, localTime.wSecond, localTime.wMilliseconds);
 }
 
 Logger LOGGER;
