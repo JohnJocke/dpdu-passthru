@@ -350,6 +350,18 @@ T_PDU_ERROR __stdcall PDUStartComPrimitive(UNUM32 hMod, UNUM32 hCLL, UNUM32 CoPT
 
 	LOGGER.logInfo("PDUStartComPrimitive", "hMod %u, hCLL %u, CoPType 0x%x, CoPDataSize %u, pCoPData %p, pCopCtrlData %p",
 		hMod, hCLL, CoPType, CoPDataSize, pCoPData, pCopCtrlData);
+	
+	if (CoPDataSize > 0 && pCoPData != nullptr)
+	{
+		std::stringstream ss;
+		ss << "CoPData: ";
+		for (UNUM32 i = 0; i < CoPDataSize; ++i)
+		{
+			ss << std::hex << (int)pCoPData[i] << " ";
+		}
+		LOGGER.logInfo("PDUStartComPrimitive", ss.str().c_str());
+	}
+
 	if (pCopCtrlData != nullptr)
 	{
 		LOGGER.logInfo("PDUStartComPrimitive", "    Time %u, NumSendCycles %d, NumReceiveCycles %d, TempParamUpdate %u, NumPossibleExpectedResponses %u, TxFlag.NumFlagBytes %u",

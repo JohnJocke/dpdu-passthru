@@ -73,6 +73,8 @@ long ISO14230ComPrimitive::StartComm(unsigned long channelID, PDU_EVENT_ITEM*& p
 		pRes->UniqueRespIdentifier = PDU_ID_UNDEF;
 
 		memcpy(pRes->pDataBytes, rxMsg.Data, pRes->NumDataBytes);
+
+		LOGGER.logInfo("ComPrimitive/StartComm", "ISO14230 diagnostic session established to 0x%x", m_destAddr);
 	}
 
 	return ret;
