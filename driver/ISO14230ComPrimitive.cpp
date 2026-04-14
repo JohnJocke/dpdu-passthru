@@ -213,6 +213,15 @@ long ISO14230ComPrimitive::CheckDestinationAddress(unsigned long channelID)
 
 	if (Settings::AutoRestartComm)
 	{
+		UNUM8 format = m_CoPData[0];
+
+		// Ignore if not physical (10xxxxxx) or functional (11xxxxxx) addressing
+		if ((format & 0xC0) != 0x80 && (format & 0xC0) != 0xC0)
+		{
+			LOGGER.logInfo("ComPrimitive/CheckDestinationAddress", "Ignoring AutoRestartComm");
+			return ret; 
+		}
+
 		if (m_CoPData[1] != m_destAddr)
 		{
 			LOGGER.logInfo("ComPrimitive/CheckDestinationAddress", "Destination address mismatch, session 0x%x, msg 0x%x", m_destAddr, m_CoPData[1]);
