@@ -5,6 +5,9 @@ pushd %~dp0
 if not exist "C:\Program Files (x86)\dpdu_j2534" mkdir "C:\Program Files (x86)\dpdu_j2534"
 if not exist "C:\Program Files (x86)\D-PDU API" mkdir "C:\Program Files (x86)\D-PDU API"
 
+echo "Adding registry entry"
+regedit /s pdu.reg
+
 echo "Copying files"
 xcopy /s/y "pdu_api_root.xml" "C:\Program Files (x86)\D-PDU API"
 if errorlevel 1 (
@@ -26,7 +29,6 @@ if errorlevel 1 (
 	pause
 	exit
 )
-
 
 echo Install complete!
 pause
