@@ -506,6 +506,27 @@ T_PDU_ERROR __stdcall PDUDestroyItem(PDU_ITEM* pItem)
 			LOGGER.logInfo("PDUDestroyItem", "Deleted PDU_IT_RESULT pItem %p", pItem);
 			break;
 		}
+		case PDU_IT_MODULE_ID:
+		{
+			PDU_MODULE_ITEM* pIt = (PDU_MODULE_ITEM*)pItem;
+			
+			//free allocated strings
+			PDU_MODULE_DATA** pModules = (PDU_MODULE_DATA**)pIt->pModuleData;
+			for (UNUM32 i = 0; i < pIt->NumEntries; ++i)
+			{
+				delete[] pModules[i]->pVendorModuleName;
+				delete[] pModules[i]->pVendorAdditionalInfo;
+			}
+			
+			pIt->NumEntries = 0;
+			delete[] pIt->pModuleData;
+			pIt->pModuleData = nullptr;
+			delete pIt;
+			pIt = nullptr;
+
+			LOGGER.logInfo("PDUDestroyItem", "Deleted PDU_IT_MODULE_ID pItem %p", pItem);
+			break;
+		}
 		default:
 		{
 			LOGGER.logWarn("PDUDestroyItem", "Unhandled pItem %p, ItemType 0x%x", pItem, pItem->ItemType);
@@ -539,46 +560,72 @@ T_PDU_ERROR __stdcall PDUGetObjectId(T_PDU_OBJT pduObjectType, CHAR8* pShortname
 	return PDU_STATUS_NOERROR;
 }
 
-//storage for PDUGetModuleIds
-static std::vector<std::string> m_pduModuleNames;
-static std::vector<PDU_MODULE_DATA> m_pduModules;
-static CHAR8 m_additionalInfo[32] = "ConnectionType = 'unknown'";
-
-static PDU_MODULE_ITEM m_moduleItem = {
-	PDU_IT_MODULE_ID,
-	0,
-	nullptr,
-};
-
 T_PDU_ERROR __stdcall PDUGetModuleIds(PDU_MODULE_ITEM** pModuleIdList)
 {
+	// Enumerate J2534 devices
 	m_registryList.clear();
-	m_pduModules.clear();
-	m_pduModuleNames.clear();
-	m_moduleItem.NumEntries = 0;
-
 	std::set<cPassThruInfo> reg;
 	shim_enumPassThruInterfaces(reg);
 	std::copy(reg.begin(), reg.end(), std::back_inserter(m_registryList));
 
-	UNUM32 idx = 0;
-	for (auto iface : m_registryList)
-	{
-		std::ostringstream ss;
-		ss << iface.Name.c_str();
-		std::string str = ss.str();
+	const UNUM32 count = static_cast<UNUM32>(m_registryList.size());
 
-		m_pduModuleNames.push_back(str);
+	// Allocate PDU_MODULE_ITEM
+	PDU_MODULE_ITEM* moduleItem = new (std::nothrow) PDU_MODULE_ITEM();
+	if (!moduleItem)
+		return PDU_ERR_FCT_FAILED;
+
+	moduleItem->ItemType = PDU_IT_MODULE_ID;
+	moduleItem->NumEntries = 0;
+	moduleItem->pModuleData = nullptr;
+
+	if (count == 0)
+	{
+		*pModuleIdList = moduleItem;
+		return PDU_STATUS_NOERROR;
+	}
+
+	// Allocate array of PDU_MODULE_DATA
+	PDU_MODULE_DATA* modules = new (std::nothrow) PDU_MODULE_DATA[count];
+	if (!modules)
+		return PDU_ERR_FCT_FAILED;
+
+	UNUM32 idx = 0;
+	for (const auto& iface : m_registryList)
+	{
+		std::string str = iface.Name;
+
+		// Allocate module name
+		CHAR8* moduleName = new (std::nothrow) CHAR8[str.size() + 1];
+		if (!moduleName)
+			return PDU_ERR_FCT_FAILED;
+
+		std::memcpy(moduleName, str.c_str(), str.size() + 1);
+
+		// Allocate additional info
+		CHAR8* additionalInfo = new (std::nothrow) CHAR8[32];
+		if (!additionalInfo)
+			return PDU_ERR_FCT_FAILED;
+
+		std::memset(additionalInfo, 0, 32);
+		const std::string infoText = "ConnectionType = 'unknown'";
+		std::memcpy(additionalInfo, infoText.c_str(), infoText.size() + 1);
+
 		LOGGER.logInfo("PDUGetModuleIds", "Interface: %s", str.c_str());
 
-		PDU_MODULE_DATA d = { 1, idx, (CHAR8*)m_pduModuleNames.back().c_str(), m_additionalInfo, PDU_MODST_AVAIL};
-		m_pduModules.push_back(d);
+		modules[idx].ModuleTypeId = 1;
+		modules[idx].hMod = idx;
+		modules[idx].pVendorModuleName = moduleName;
+		modules[idx].pVendorAdditionalInfo = additionalInfo;
+		modules[idx].ModuleStatus = PDU_MODST_AVAIL;
+
 		++idx;
 	}
 
-	m_moduleItem.pModuleData = &m_pduModules[0];
-	m_moduleItem.NumEntries = idx;
-	*pModuleIdList = &m_moduleItem;
+	moduleItem->pModuleData = modules;
+	moduleItem->NumEntries = idx;
+
+	*pModuleIdList = moduleItem;
 
 	return PDU_STATUS_NOERROR;
 }
