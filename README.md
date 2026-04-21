@@ -23,6 +23,9 @@ D-PDU API driver for J2534 compatible devices. Currently supports only GM Tech2W
 * Find out why Saab 9-5 post-2006 fails communication with DICE through the K-Line 
 * ISO15765 / CAN support
 
+# Known issues
+* T2Win will sometimes freeze if several T2Win menus are accessed in one session. There is no known workaround other than restarting T2Win each time when different menus are accessed.
+
 # Instructions
 ## Prerequisities
 * Install latest Microsoft Visual C++ Redistributable (x86): https://aka.ms/vs/17/release/vc_redist.x86.exe
