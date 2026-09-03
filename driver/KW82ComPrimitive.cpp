@@ -195,7 +195,10 @@ long KW82ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 		unsigned long dataSize = m_CoPData.size();
 		PASSTHRU_MSG txMsg = { m_protocolID, 0, 0, 0, dataSize, dataSize };
 
-		memcpy(txMsg.Data, &m_CoPData[0], dataSize);
+		if (dataSize > 0)
+		{
+			memcpy(txMsg.Data, m_CoPData.data(), dataSize);
+		}
 
 		ret = _PassThruWriteMsgs(channelID, &txMsg, &numMsgs, TIMEOUT_MS);
 

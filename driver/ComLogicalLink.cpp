@@ -239,17 +239,20 @@ bool ComLogicalLink::GetEvent(PDU_EVENT_ITEM* & pEvt)
 		m_eventQueue.pop();
 	}
 
-	PDU_STATUS_DATA state = *(PDU_STATUS_DATA*)(pEvt->pData);
-	if (state == PDU_COPST_FINISHED || state == PDU_COPST_CANCELLED)
+	if (pEvt->ItemType == PDU_IT_STATUS && pEvt->pData != nullptr)
 	{
-		const std::lock_guard<std::mutex> lock(m_copLock);
-
-		for (auto it = m_copQueue.begin(); it != m_copQueue.end(); ++it)
+		PDU_STATUS_DATA state = *(PDU_STATUS_DATA*)(pEvt->pData);
+		if (state == PDU_COPST_FINISHED || state == PDU_COPST_CANCELLED)
 		{
-			if ((*it)->getHandle() == pEvt->hCop)
+			const std::lock_guard<std::mutex> lock(m_copLock);
+
+			for (auto it = m_copQueue.begin(); it != m_copQueue.end(); ++it)
 			{
-				(*it)->Destroy();
-				break;
+				if ((*it)->getHandle() == pEvt->hCop)
+				{
+					(*it)->Destroy();
+					break;
+				}
 			}
 		}
 	}
@@ -315,8 +318,10 @@ long ComLogicalLink::SetComParam()
 void ComLogicalLink::SignalEvents()
 {
 	LOGGER.logInfo("ComLogicalLink/SignalEvents", "Signaled events");
-
-	m_eventCallbackFnc(PDU_EVT_DATA_AVAILABLE, m_hMod, m_hCLL, nullptr, nullptr);
+	if (m_eventCallbackFnc != nullptr)
+	{
+		m_eventCallbackFnc(PDU_EVT_DATA_AVAILABLE, m_hMod, m_hCLL, nullptr, nullptr);
+	}
 }
 
 void ComLogicalLink::QueueEvent(PDU_EVENT_ITEM* pEvt)
@@ -344,12 +349,11 @@ void ComLogicalLink::run()
 
 	while (m_running)
 	{
-		auto it = m_copQueue.end();
-		auto it_end = m_copQueue.end();
+		std::vector<std::shared_ptr<ComPrimitive>> copsToProcess;
 		{
 			const std::lock_guard<std::mutex> lock(m_copLock);
 
-			for (it = m_copQueue.begin(); it != m_copQueue.end();)
+			for (auto it = m_copQueue.begin(); it != m_copQueue.end();)
 			{
 				if ((*it)->getHandle() == 0)
 				{
@@ -362,14 +366,18 @@ void ComLogicalLink::run()
 				}
 			}
 
-			it = m_copQueue.begin();
-			it_end = m_copQueue.end();
+			copsToProcess = m_copQueue;
 		}
 
-		for (it; it != it_end; ++it)
+		for (const auto& cop : copsToProcess)
 		{
-			LOGGER.logInfo("ComLogicalLink/run", "Processing cop %u", (*it)->getHandle());
-			ProcessCop(*it);
+			if (!cop || cop->getHandle() == 0)
+			{
+				continue;
+			}
+
+			LOGGER.logInfo("ComLogicalLink/run", "Processing cop %u", cop->getHandle());
+			ProcessCop(cop);
 		}
 		
 
@@ -384,6 +392,10 @@ void ComLogicalLink::ProcessCop(std::shared_ptr<ComPrimitive> cop)
 
 	cop->Execute(pEvt);
 	SignalEvent(pEvt);
+	if (cop->GetStatus() == PDU_COPST_CANCELLED)
+	{
+		return;
+	}
 
 	switch (cop->getType())
 	{

@@ -367,17 +367,22 @@ T_PDU_ERROR __stdcall PDUStartComPrimitive(UNUM32 hMod, UNUM32 hCLL, UNUM32 CoPT
 		LOGGER.logInfo("PDUStartComPrimitive", "    Time %u, NumSendCycles %d, NumReceiveCycles %d, TempParamUpdate %u, NumPossibleExpectedResponses %u, TxFlag.NumFlagBytes %u",
 			pCopCtrlData->Time, pCopCtrlData->NumSendCycles, pCopCtrlData->NumReceiveCycles, pCopCtrlData->TempParamUpdate, pCopCtrlData->NumPossibleExpectedResponses, pCopCtrlData->TxFlag.NumFlagBytes);
 
-		if (pCopCtrlData->NumPossibleExpectedResponses > 0)
+		if (pCopCtrlData->NumPossibleExpectedResponses > 0 && pCopCtrlData->pExpectedResponseArray != nullptr)
 		{
 			PDU_EXP_RESP_DATA respData = pCopCtrlData->pExpectedResponseArray[0];
 			LOGGER.logInfo("PDUStartComPrimitive", "    ResponseType %u, AcceptanceId %u, NumMaskPatternBytes %u, NumUniqueRespIds %u",
 				respData.ResponseType, respData.AcceptanceId, respData.NumMaskPatternBytes, respData.NumUniqueRespIds);
 		}
 
-		if (pCopCtrlData->TxFlag.NumFlagBytes > 0)
+		if (pCopCtrlData->TxFlag.NumFlagBytes > 0 && pCopCtrlData->TxFlag.pFlagData != nullptr)
 		{
+			UNUM8 f0 = pCopCtrlData->TxFlag.NumFlagBytes > 0 ? pCopCtrlData->TxFlag.pFlagData[0] : 0;
+			UNUM8 f1 = pCopCtrlData->TxFlag.NumFlagBytes > 1 ? pCopCtrlData->TxFlag.pFlagData[1] : 0;
+			UNUM8 f2 = pCopCtrlData->TxFlag.NumFlagBytes > 2 ? pCopCtrlData->TxFlag.pFlagData[2] : 0;
+			UNUM8 f3 = pCopCtrlData->TxFlag.NumFlagBytes > 3 ? pCopCtrlData->TxFlag.pFlagData[3] : 0;
+
 			LOGGER.logInfo("PDUStartComPrimitive", "    pFlagData[0] 0x%x, pFlagData[1] 0x%x, pFlagData[2] 0x%x, pFlagData[3] 0x%x",
-				pCopCtrlData->TxFlag.pFlagData[0], pCopCtrlData->TxFlag.pFlagData[1], pCopCtrlData->TxFlag.pFlagData[2], pCopCtrlData->TxFlag.pFlagData[3]);
+				f0, f1, f2, f3);
 		}
 	}
 

@@ -17,6 +17,11 @@ const std::vector<UNUM8> MSG_TESTER_PRESENT_41 = { 0x80, 0x41, 0xf1, 0x01, 0x3e,
 long ISO14230ComPrimitive::StartComm(unsigned long channelID, PDU_EVENT_ITEM*& pEvt)
 {
 	long ret = STATUS_NOERROR;
+	if (m_CoPData.size() < 2)
+	{
+		LOGGER.logWarn("ComPrimitive/StartComm", "Invalid CoPData size %zu for StartComm", m_CoPData.size());
+		return ret;
+	}
 
 	if (m_CopCtrlData.NumReceiveCycles == 0 || m_CopCtrlData.NumSendCycles == 0)
 	{
@@ -37,7 +42,10 @@ long ISO14230ComPrimitive::StartComm(unsigned long channelID, PDU_EVENT_ITEM*& p
 	PASSTHRU_MSG txMsg = { m_protocolID, 0, 0, 0, dataSize, dataSize };
 	PASSTHRU_MSG rxMsg;
 
-	memcpy(txMsg.Data, &m_CoPData[0], dataSize);
+	if (dataSize > 0)
+	{
+		memcpy(txMsg.Data, m_CoPData.data(), dataSize);
+	}
 
 	ret = _PassThruIoctl(channelID, FAST_INIT, &txMsg, &rxMsg);
 	if (ret == STATUS_NOERROR)
@@ -132,7 +140,10 @@ long ISO14230ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pE
 		unsigned long dataSize = m_CoPData.size();
 		PASSTHRU_MSG txMsg = { m_protocolID, 0, 0, 0, dataSize, dataSize };
 
-		memcpy(txMsg.Data, &m_CoPData[0], dataSize);
+		if (dataSize > 0)
+		{
+			memcpy(txMsg.Data, m_CoPData.data(), dataSize);
+		}
 
 		ret = _PassThruWriteMsgs(channelID, &txMsg, &numMsgs, TIMEOUT_MS);
 
@@ -210,6 +221,11 @@ long ISO14230ComPrimitive::SendRecv(unsigned long channelID, PDU_EVENT_ITEM*& pE
 long ISO14230ComPrimitive::CheckDestinationAddress(unsigned long channelID)
 {
 	long ret = STATUS_NOERROR;
+	if (m_CoPData.size() < 2)
+	{
+		LOGGER.logWarn("ComPrimitive/CheckDestinationAddress", "Skipping destination check, CoPData too short (%zu)", m_CoPData.size());
+		return ret;
+	}
 
 	if (Settings::AutoRestartComm)
 	{
@@ -290,6 +306,12 @@ bool ISO14230ComPrimitive::TesterPresentWorkaround(PDU_EVENT_ITEM*& pEvt)
 	{
 		if (m_CoPData == MSG_TESTER_PRESENT_41)
 		{
+			if (m_CoPData.size() < 2)
+			{
+				LOGGER.logWarn("ComPrimitive/TesterPresentWorkaround", "TesterPresent frame too short (%zu)", m_CoPData.size());
+				return false;
+			}
+
 			m_CoPData[1] = m_destAddr;
 			checksum(m_CoPData, m_CoPData.size() - 1);
 
