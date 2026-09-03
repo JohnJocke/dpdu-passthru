@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pdu_api.h"
+#include <mutex>
 #include <vector>
 
 class ComPrimitive
@@ -34,6 +35,7 @@ protected:
 	void* m_pCoPTag;
 
 	unsigned long m_protocolID;
+	mutable std::mutex m_stateLock;
 
 	static UNUM32 m_hCoPCtr;
 	static UNUM8 m_destAddr;
